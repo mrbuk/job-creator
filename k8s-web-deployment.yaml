@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: job-creator
+  namespace: default
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: job-creator
+rules:
+- apiGroups: ["batch"] # "" indicates the core API group
+  resources: ["jobs"]
+  verbs: ["*"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: create-jobs
+subjects:
+- kind: ServiceAccount
+  name: job-creator
+roleRef:
+  kind: Role 
+  name: job-creator
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-creator
+  labels:
+    app: job-creator
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: job-creator
+  template:
+    metadata:
+      labels:
+        app: job-creator
+    spec:
+      serviceAccountName: job-creator
+      containers:
+      - name: job-creator
+        image: mrbuk/job-creator:0.2
+        env:
+        - name: PORT
+          value: "8080"
+        ports:
+        - containerPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: job-creator-service
+spec:
+  selector:
+    app: job-creator
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
